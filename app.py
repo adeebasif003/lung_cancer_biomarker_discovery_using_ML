@@ -62,6 +62,14 @@ st.markdown("""
     font-family: 'Inter', sans-serif;
 }
 
+/* =========================================================
+   NEW FIX: Unpin Streamlit Header so it scrolls away naturally
+   ========================================================= */
+header[data-testid="stHeader"] {
+    position: absolute !important;
+    background: transparent !important;
+}
+
 /* Remove Streamlit Default Footer spacing */
 footer { visibility: hidden; display: none !important; }
 .block-container { padding-bottom: 2rem !important; }
