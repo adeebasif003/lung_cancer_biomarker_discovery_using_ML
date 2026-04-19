@@ -19,25 +19,28 @@ def load_assets():
     try:
         model = joblib.load("best_model.pkl")
         scaler = joblib.load("scaler.pkl")
-        return model, scaler
+        
+        # Finalized Top 10 Random Forest Biomarkers
+        biomarkers = [
+            'C16orf59', 'PTPN21', 'IQGAP3', 'FHL1', 'RAMP3', 
+            'ROBO4', 'FMO2', 'GIMAP8', 'GRK5', 'EFNA4'
+        ]
+        
+        return model, scaler, biomarkers
     except FileNotFoundError as e:
-        return None, None
+        return None, None, None
 
-model, scaler = load_assets()
-
-# Your exact genes from the training process
-BIOMARKERS = ['PTPN21', 'RTKN2', 'CAT', 'C13orf36', 'LOC158376', 
-              'GPM6A', 'UBE2T', 'RECQL4', 'RXFP1', 'C16orf59']
+model, scaler, BIOMARKERS = load_assets()
 
 # --- 3. SESSION STATE INIT & RESET LOGIC ---
 if 'results' not in st.session_state:
     st.session_state.results = None
 
-# THE FIX: This function directly forces the widget keys back to None
 def clear_form():
     st.session_state.results = None
-    for gene in BIOMARKERS:
-        st.session_state[gene] = None
+    if BIOMARKERS:
+        for gene in BIOMARKERS:
+            st.session_state[gene] = None
 
 # --- 4. ADVANCED CSS INJECTION ---
 st.markdown("""
@@ -62,15 +65,11 @@ st.markdown("""
     font-family: 'Inter', sans-serif;
 }
 
-/* =========================================================
-   NEW FIX: Unpin Streamlit Header so it scrolls away naturally
-   ========================================================= */
 header[data-testid="stHeader"] {
     position: absolute !important;
     background: transparent !important;
 }
 
-/* Remove Streamlit Default Footer spacing */
 footer { visibility: hidden; display: none !important; }
 .block-container { padding-bottom: 2rem !important; }
 
@@ -78,7 +77,6 @@ h1, h2, h3, h4, .font-display {
     font-family: 'Space Grotesk', sans-serif !important;
 }
 
-/* Gradients & Animations */
 .gradient-text {
     background: linear-gradient(135deg, var(--primary), var(--accent));
     -webkit-background-clip: text;
@@ -97,7 +95,6 @@ h1, h2, h3, h4, .font-display {
     margin-bottom: 2rem;
 }
 
-/* Custom Hero Section */
 .hero-container {
     text-align: center;
     padding: 4rem 1rem 2rem 1rem;
@@ -113,7 +110,6 @@ h1, h2, h3, h4, .font-display {
     letter-spacing: -0.02em;
 }
 
-/* Input Fields styling override */
 div[data-baseweb="input"] > div {
     background-color: rgba(0,0,0,0.2) !important;
     border: 1px solid var(--border-color) !important;
@@ -124,9 +120,7 @@ div[data-baseweb="input"] > div:focus-within {
 }
 .stNumberInput label { font-family: 'Space Grotesk'; font-weight: 600; color: #e2e8f0 !important; }
 
-/* Primary Button Styling */
 .stButton > button {
-    width: 100%;
     border-radius: 0.75rem;
     height: 3.5rem;
     font-family: 'Space Grotesk', sans-serif;
@@ -145,7 +139,6 @@ div[data-baseweb="input"] > div:focus-within {
     box-shadow: 0 0 30px rgba(45, 212, 191, 0.5);
 }
 
-/* Reset / Secondary Button Styling */
 .stButton > button[kind="secondary"] {
     background: rgba(255, 255, 255, 0.05);
     color: #f1f5f9;
@@ -158,7 +151,6 @@ div[data-baseweb="input"] > div:focus-within {
     transform: translateY(-2px);
 }
 
-/* Results Banners */
 .result-banner {
     display: flex;
     align-items: center;
@@ -171,7 +163,6 @@ div[data-baseweb="input"] > div:focus-within {
 .result-banner.negative { background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.4); }
 .result-prob { font-size: 3.5rem; font-weight: 800; font-family: 'Space Grotesk'; }
 
-/* Floating Particles Animation */
 @keyframes float {
     0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
     50% { transform: translateY(-100px) translateX(50px); opacity: 0.5; }
@@ -197,75 +188,77 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 6. INPUT SECTION ---
-with st.container():
-    st.markdown("""
-    <div class='glass-card' style='padding-top: 1rem; padding-bottom: 1rem; margin-bottom: 2rem; margin-top: 4rem;'>
-        <h2 class='font-display' style='text-align: center; margin: 0;'>Gene Expression <span class='gradient-text'>Input Panel</span></h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    filled_count = 0
-    total_genes = len(BIOMARKERS)
-    cols = st.columns(5)
-    
-    # THE FIX: Removed dictionary assignments, relying purely on Streamlit's 'key' architecture
-    for i, gene in enumerate(BIOMARKERS):
-        with cols[i % 5]:
-            val = st.number_input(
-                label=gene,
-                value=None, # This ensures it starts perfectly empty
-                format="%.4f",
-                placeholder="e.g. 0.0000",
-                min_value=0.0,
-                key=gene 
-            )
-            if val is not None:
-                filled_count += 1
-            
-    st.write("<br>", unsafe_allow_html=True)
-    
-    progress_percentage = (filled_count / total_genes) * 100
-    st.markdown(f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0 1rem;">
-        <span style="color: #94a3b8; font-size: 0.85rem;">Input Completion</span>
-        <span style="color: #2dd4bf; font-weight: bold; font-family: 'Space Grotesk';">{filled_count} / {total_genes} Genes</span>
-    </div>
-    <div style="width: calc(100% - 2rem); margin: 0 auto 2rem auto; background-color: rgba(255,255,255,0.05); border-radius: 999px; height: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-        <div style="width: {progress_percentage}%; background: linear-gradient(135deg, var(--primary), var(--accent)); height: 100%; transition: width 0.4s ease; border-radius: 999px;"></div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Centered Buttons
-    _, btn_run_col, btn_reset_col, _ = st.columns([1, 1.5, 1.5, 1])
-    
-    with btn_run_col:
-        if st.button("RUN DIAGNOSTICS", type="primary", use_container_width=True):
-            if filled_count < total_genes:
-                st.warning("⚠️ Action Blocked: Please enter expression values for all 10 genes before running the diagnostic.")
-            else:
-                if model and scaler:
-                    with st.spinner("Analyzing biomarker patterns against neural weights..."):
-                        time.sleep(1.5) 
-                        
-                        # Extract the values directly from Streamlit's session state
-                        current_inputs = {gene: st.session_state[gene] for gene in BIOMARKERS}
-                        input_df = pd.DataFrame([current_inputs])[BIOMARKERS]
-                        
-                        input_scaled = scaler.transform(input_df)
-                        prediction = model.predict(input_scaled)[0]
-                        probabilities = model.predict_proba(input_scaled)[0]
-                        
-                        st.session_state.results = {
-                            "prediction": "positive" if prediction == 1 else "negative",
-                            "probability": probabilities[1] * 100,
-                            "raw_probs": probabilities,
-                            "inputs": current_inputs
-                        }
+if not BIOMARKERS:
+    st.error("⚠️ System Offline: Cannot locate 'best_model.pkl' or 'scaler.pkl'. Please ensure models are generated and placed in the app directory.")
+else:
+    with st.container():
+        st.markdown("""
+        <div class='glass-card' style='padding-top: 1rem; padding-bottom: 1rem; margin-bottom: 2rem; margin-top: 4rem;'>
+            <h2 class='font-display' style='text-align: center; margin: 0;'>Gene Expression <span class='gradient-text'>Input Panel</span></h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        filled_count = 0
+        total_genes = len(BIOMARKERS)
+        cols = st.columns(5)
+        
+        for i, gene in enumerate(BIOMARKERS):
+            with cols[i % 5]:
+                val = st.number_input(
+                    label=gene,
+                    value=None, 
+                    format="%.4f",
+                    placeholder="e.g. 0.0000",
+                    min_value=0.0,
+                    key=gene 
+                )
+                if val is not None:
+                    filled_count += 1
+                
+        st.write("<br>", unsafe_allow_html=True)
+        
+        progress_percentage = (filled_count / total_genes) * 100
+        st.markdown(f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0 1rem;">
+            <span style="color: #94a3b8; font-size: 0.85rem;">Input Completion</span>
+            <span style="color: #2dd4bf; font-weight: bold; font-family: 'Space Grotesk';">{filled_count} / {total_genes} Genes</span>
+        </div>
+        <div style="width: calc(100% - 2rem); margin: 0 auto 2rem auto; background-color: rgba(255,255,255,0.05); border-radius: 999px; height: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="width: {progress_percentage}%; background: linear-gradient(135deg, var(--primary), var(--accent)); height: 100%; transition: width 0.4s ease; border-radius: 999px;"></div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        _, btn_run_col, btn_reset_col, _ = st.columns([1, 1.5, 1.5, 1])
+        
+        with btn_run_col:
+            # Updated to width='stretch' to remove warnings
+            if st.button("RUN DIAGNOSTICS", type="primary", width="stretch"):
+                if filled_count < total_genes:
+                    st.warning("⚠️ Action Blocked: Please enter expression values for all genes before running the diagnostic.")
                 else:
-                    st.error("Error: The machine learning model or scaler was not found in the directory. Ensure 'best_model.pkl' and 'scaler.pkl' are present.")
+                    if model and scaler:
+                        with st.spinner("Analyzing biomarker patterns against neural weights..."):
+                            time.sleep(1.5) 
+                            
+                            current_inputs = {gene: st.session_state[gene] for gene in BIOMARKERS}
+                            input_df = pd.DataFrame([current_inputs])[BIOMARKERS]
+                            
+                            input_scaled = scaler.transform(input_df)
+                            prediction = model.predict(input_scaled)[0]
+                            probabilities = model.predict_proba(input_scaled)[0]
+                            
+                            st.session_state.results = {
+                                "prediction": "positive" if prediction == 1 else "negative",
+                                "probability": probabilities[1] * 100,
+                                "raw_probs": probabilities,
+                                "inputs": current_inputs
+                            }
+                    else:
+                        st.error("Error: The machine learning model or scaler was not found in the directory.")
 
-    with btn_reset_col:
-        st.button("RESET DATA", type="secondary", use_container_width=True, on_click=clear_form)
+        with btn_reset_col:
+            # Updated to width='stretch' to remove warnings
+            st.button("RESET DATA", type="secondary", width="stretch", on_click=clear_form)
 
 # --- 7. RESULTS PANEL ---
 if st.session_state.results:
@@ -359,10 +352,12 @@ if st.session_state.results:
         )
         st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
-# --- 8. FOOTER ---
+# --- 8. FOOTER & DISCLAIMER ---
 st.markdown("""
 <div style='text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.05); color: #64748b; font-size: 0.85rem;'>
     <p style='margin: 0; padding-bottom: 0.5rem;'>© 2026 LungBioML — Lung Cancer Predictor using Machine Learning</p>
-    <p style='margin: 0; font-size: 0.75rem; opacity: 0.7;'>For research and educational purposes only.</p>
 </div>
 """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.warning("⚠️ CLINICAL DISCLAIMER: This tool is a machine learning prototype for research purposes only. It is not intended for clinical diagnosis. Always consult a qualified oncologist.")
